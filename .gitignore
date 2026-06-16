@@ -11,6 +11,14 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+
+# BMad method files
+_bmad/
+.opencode/
+.github/
+.agents/
+design-artifacts/
 
 # Editor directories and files
 .vscode/*
