@@ -1,75 +1,77 @@
-# React + TypeScript + Vite
+# Cube POS
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web-based Point of Sale system with inventory management. Built with React, Node.js/Express, and MySQL (TiDB Cloud).
 
-Currently, two official plugins are available:
+## Prerequisites
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js 18+
+- pnpm
+- TiDB Cloud (or MySQL) database
 
-## React Compiler
+## Setup
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+1. Clone the repo and install dependencies:
 
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+2. Create `.env` in the project root:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+DB_HOST=your-tidb-host
+DB_PORT=4000
+DB_USER=your-user
+DB_PASSWORD=your-password
+DB_NAME=cube_pos
+DB_SSL=true
+PORT=5000
+```
+
+3. Run the database schema against your TiDB Cloud instance:
+
+```bash
+mysql -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASSWORD < database.sql
+```
+
+## Running
+
+Start the backend (port 5000):
+
+```bash
+node server/index.js
+```
+
+Start the frontend (port 5173):
+
+```bash
+pnpm run dev
+```
+
+Open http://localhost:5173
+
+## Features
+
+- **Dashboard** — Total products, inventory count, sales stats, recent sales
+- **Products** — CRUD with add/edit/delete modals and stock indicators
+- **POS** — Product grid, cart sidebar with quantity controls, checkout with inventory deduction
+- **Sales History** — Transaction log with receipt detail view
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /api/products | List all products |
+| POST | /api/products | Create a product |
+| PUT | /api/products/:id | Update a product |
+| DELETE | /api/products/:id | Delete a product |
+| POST | /api/sales | Complete a sale |
+| GET | /api/sales | List all sales |
+| GET | /api/sales/:id | Get sale details |
+| GET | /api/dashboard | Get aggregate stats |
+
+## Tech Stack
+
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS 4, React Router, Axios
+- **Backend:** Node.js, Express 5, mysql2
+- **Database:** MySQL (TiDB Cloud)
