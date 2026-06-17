@@ -6,16 +6,26 @@ export default function Sales() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [selected, setSelected] = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     salesApi.list()
       .then(setSales)
+      .catch(() => setError('Failed to load sales'))
       .finally(() => setLoading(false));
   }, []);
 
   const viewDetails = async (sale: Sale) => {
-    const detail = await salesApi.get(sale.id);
-    setSelected(detail);
+    setDetailLoading(true);
+    try {
+      const detail = await salesApi.get(sale.id);
+      setSelected(detail);
+    } catch {
+      setError('Failed to load sale details');
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   if (loading) {
@@ -25,6 +35,10 @@ export default function Sales() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-800">Sales History</h2>
+
+      {error && (
+        <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="overflow-x-auto">
@@ -64,7 +78,15 @@ export default function Sales() {
         </div>
       </div>
 
-      {selected && (
+      {detailLoading && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 text-center text-gray-500">
+            Loading...
+          </div>
+        </div>
+      )}
+
+      {selected && !detailLoading && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 space-y-4">
             <div className="flex justify-between items-start">
