@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { productsApi } from '../api';
 import type { Product } from '../api';
 
@@ -11,18 +11,29 @@ type ProductForm = {
 
 const emptyForm: ProductForm = { name: '', price: '', stock: '0', description: '' };
 
+function formatDate(dateStr: string) {
+  try {
+    return new Date(dateStr).toLocaleDateString();
+  } catch {
+    return '-';
+  }
+}
+
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const load = () => {
+  const load = useCallback(() => {
     productsApi.list().then(setProducts).catch(() => setError('Failed to load products'));
-  };
+  }, []);
 
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const openCreate = () => {
     setEditing(null);
@@ -38,12 +49,18 @@ export default function Products() {
 
   const handleSave = async () => {
     if (!form.name || !form.price) return;
-    const payload = {
-      name: form.name,
-      price: parseFloat(form.price),
-      stock: parseInt(form.stock) || 0,
-      description: form.description || null,
-    };
+    const price = parseFloat(form.price);
+    if (isNaN(price) || price < 0) {
+      setError('Invalid price');
+      return;
+    }
+    const stock = parseInt(form.stock) || 0;
+    if (stock < 0) {
+      setError('Stock cannot be negative');
+      return;
+    }
+    const payload = { name: form.name, price, stock, description: form.description || null };
+    setSaving(true);
     try {
       if (editing) {
         await productsApi.update(editing.id, payload);
@@ -54,16 +71,22 @@ export default function Products() {
       load();
     } catch {
       setError('Failed to save product');
+    } finally {
+      setSaving(false);
     }
   };
 
+  const [deleting, setDeleting] = useState<number | null>(null);
+
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this product?')) return;
+    setDeleting(id);
     try {
       await productsApi.delete(id);
       load();
     } catch {
       setError('Cannot delete — product linked to existing sales');
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -92,13 +115,14 @@ export default function Products() {
                 <th className="px-5 py-3 font-medium">Price</th>
                 <th className="px-5 py-3 font-medium">Stock</th>
                 <th className="px-5 py-3 font-medium hidden md:table-cell">Description</th>
+                <th className="px-5 py-3 font-medium hidden md:table-cell">Created</th>
                 <th className="px-5 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-8 text-center text-gray-500">No products yet.</td>
+                  <td colSpan={6} className="px-5 py-8 text-center text-gray-500">No products yet.</td>
                 </tr>
               ) : (
                 products.map(p => (
@@ -117,13 +141,16 @@ export default function Products() {
                     <td className="px-5 py-3 text-gray-500 hidden md:table-cell max-w-xs truncate">
                       {p.description || '-'}
                     </td>
+                    <td className="px-5 py-3 text-gray-500 hidden md:table-cell">
+                      {formatDate(p.created_at)}
+                    </td>
                     <td className="px-5 py-3">
                       <div className="flex gap-2">
                         <button onClick={() => openEdit(p)} className="text-blue-600 hover:text-blue-800 text-xs font-medium">
                           Edit
                         </button>
-                        <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:text-red-800 text-xs font-medium">
-                          Delete
+                        <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id} className="text-red-600 hover:text-red-800 text-xs font-medium disabled:text-red-300">
+                          {deleting === p.id ? '...' : 'Delete'}
                         </button>
                       </div>
                     </td>
@@ -158,6 +185,7 @@ export default function Products() {
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={form.price}
                   onChange={e => setForm({ ...form, price: e.target.value })}
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -168,6 +196,7 @@ export default function Products() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
                 <input
                   type="number"
+                  min="0"
                   value={form.stock}
                   onChange={e => setForm({ ...form, stock: e.target.value })}
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -190,14 +219,18 @@ export default function Products() {
               <button
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg"
+                disabled={saving}
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                disabled={saving}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  saving ? 'bg-blue-400 text-white cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
-                {editing ? 'Update' : 'Create'}
+                {saving ? 'Saving...' : editing ? 'Update' : 'Create'}
               </button>
             </div>
           </div>

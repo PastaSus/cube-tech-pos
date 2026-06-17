@@ -13,6 +13,11 @@ export default function App() {
         <Route path="/products" element={<Products />} />
         <Route path="/pos" element={<POS />} />
         <Route path="/sales" element={<Sales />} />
+        <Route path="*" element={
+          <div className="flex items-center justify-center h-64 text-gray-500">
+            <p>Page not found</p>
+          </div>
+        } />
       </Routes>
     </Layout>
   );

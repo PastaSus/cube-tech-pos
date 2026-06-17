@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { productsApi, salesApi } from '../api';
 import type { Product } from '../api';
 
@@ -11,10 +11,17 @@ export default function POS() {
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [checkoutMessage, setCheckoutMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [checkingOut, setCheckingOut] = useState(false);
+
+  const loadProducts = useCallback(() => {
+    productsApi.list()
+      .then(setProducts)
+      .catch(() => setCheckoutMessage({ type: 'error', text: 'Failed to load products' }));
+  }, []);
 
   useEffect(() => {
-    productsApi.list().then(setProducts);
-  }, []);
+    loadProducts();
+  }, [loadProducts]);
 
   const addToCart = (product: Product) => {
     if (product.stock <= 0) return;
@@ -47,19 +54,25 @@ export default function POS() {
   const total = cart.reduce((sum, c) => sum + Number(c.product.price) * c.quantity, 0);
 
   const handleCheckout = async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0 || checkingOut) return;
+    setCheckingOut(true);
     try {
       const items = cart.map(c => ({ product_id: c.product.id, quantity: c.quantity }));
       const sale = await salesApi.create(items);
       setCheckoutMessage({ type: 'success', text: `Sale complete! Receipt: ${sale.receipt_number}` });
       setCart([]);
-      const updated = await productsApi.list();
-      setProducts(updated);
+      loadProducts();
     } catch (err) {
-      const msg = err && typeof err === 'object' && 'response' in err
-        ? (err as { response: { data: { error: string } } }).response.data.error
-        : 'Checkout failed';
+      let msg = 'Checkout failed';
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosErr = err as { response?: { data?: { error?: string } } };
+        if (axiosErr.response?.data?.error) {
+          msg = axiosErr.response.data.error;
+        }
+      }
       setCheckoutMessage({ type: 'error', text: msg });
+    } finally {
+      setCheckingOut(false);
     }
   };
 
@@ -147,9 +160,14 @@ export default function POS() {
             </div>
             <button
               onClick={handleCheckout}
-              className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              disabled={checkingOut}
+              className={`w-full py-2.5 rounded-lg font-medium transition-colors ${
+                checkingOut
+                  ? 'bg-blue-400 text-white cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
             >
-              Checkout
+              {checkingOut ? 'Processing...' : 'Checkout'}
             </button>
           </div>
         )}
