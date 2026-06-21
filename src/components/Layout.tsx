@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { LayoutDashboard, Package, ShoppingCart, Receipt, Store } from 'lucide-react';
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: '📊' },
-  { to: '/products', label: 'Products', icon: '📦' },
-  { to: '/pos', label: 'POS', icon: '🛒' },
-  { to: '/sales', label: 'Sales', icon: '🧾' },
+  { to: '/', label: 'Dashboard', Icon: LayoutDashboard },
+  { to: '/products', label: 'Products', Icon: Package },
+  { to: '/pos', label: 'POS', Icon: ShoppingCart },
+  { to: '/sales', label: 'Sales', Icon: Receipt },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -13,8 +14,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <aside className={`${menuOpen ? 'block' : 'hidden'} md:flex flex-col w-64 bg-white border-r shadow-sm fixed md:static inset-y-0 left-0 z-50`}>
-        <div className="p-4 border-b">
+      <aside
+        className={`fixed md:static md:flex flex-col w-64 bg-white border-r shadow-sm inset-y-0 left-0 z-50 transition-all duration-300 ease-in-out ${
+          menuOpen ? 'translate-x-0 visible' : '-translate-x-full invisible'
+        } md:translate-x-0 md:visible`}
+      >
+        <div className="p-4 border-b flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white"><Store size={18} /></div>
           <h1 className="text-xl font-bold text-gray-800">Cube POS</h1>
         </div>
         <nav className="flex-1 p-2 space-y-1">
@@ -32,7 +38,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 }`
               }
             >
-              <span>{item.icon}</span>
+              <item.Icon size={18} />
               {item.label}
             </NavLink>
           ))}
