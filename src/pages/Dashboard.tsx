@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
+import { NavLink } from "react-router-dom";
+import { Package, ClipboardList, Receipt, DollarSign, ClipboardIcon } from "lucide-react";
 import { dashboardApi } from "../api";
 import type { DashboardData } from "../api";
 
-const iconMap: Record<string, string> = {
-  "Total Products": "📦",
-  "Inventory Items": "📋",
-  "Total Sales": "🧾",
-  Revenue: "💰",
+const iconMap: Record<string, React.ReactNode> = {
+  "Total Products": <Package size={20} />,
+  "Inventory Items": <ClipboardList size={20} />,
+  "Total Sales": <Receipt size={20} />,
+  Revenue: <DollarSign size={20} />,
 };
 
 function formatDate(dateStr: string) {
@@ -22,12 +24,14 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const normalize = (d: DashboardData) => ({ ...d, recentSales: d.recentSales ?? [] });
+
   const load = () => {
     setLoading(true);
     setError("");
     dashboardApi
       .get()
-      .then(setData)
+      .then(d => setData(normalize(d)))
       .catch(() => setError("Could not load dashboard. Is the server running?"))
       .finally(() => setLoading(false));
   };
@@ -36,8 +40,8 @@ export default function Dashboard() {
     let cancelled = false;
     dashboardApi
       .get()
-      .then((data) => {
-        if (!cancelled) setData(data);
+      .then((d) => {
+        if (!cancelled) setData(normalize(d));
       })
       .catch(() => {
         if (!cancelled)
@@ -53,8 +57,27 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
-        <p>Loading...</p>
+      <div className="space-y-6 animate-pulse">
+        <div className="h-8 w-40 bg-gray-200 rounded-lg" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-white rounded-xl shadow-sm border p-5">
+              <div className="w-10 h-10 bg-gray-200 rounded-lg mb-3" />
+              <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
+              <div className="h-7 w-16 bg-gray-200 rounded" />
+            </div>
+          ))}
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border">
+          <div className="px-5 py-4 border-b">
+            <div className="h-5 w-28 bg-gray-200 rounded" />
+          </div>
+          <div className="p-5 space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-4 w-full bg-gray-200 rounded" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -108,7 +131,7 @@ export default function Dashboard() {
             <div
               className={`w-10 h-10 ${card.color} rounded-lg flex items-center justify-center text-white text-lg mb-3`}
             >
-              {iconMap[card.label] || "📊"}
+              {iconMap[card.label] || <DollarSign size={20} />}
             </div>
             <p className="text-sm text-gray-500">{card.label}</p>
             <p className="text-2xl font-bold text-gray-800">{card.value}</p>
@@ -121,8 +144,11 @@ export default function Dashboard() {
           <h3 className="font-semibold text-gray-800">Recent Sales</h3>
         </div>
         <div className="overflow-x-auto">
-          {data.recentSales.length === 0 ? (
-            <p className="p-5 text-gray-500 text-sm">No sales yet.</p>
+          {(!data.recentSales || data.recentSales.length === 0) ? (
+            <div className="p-8 text-center text-gray-400">
+              <ClipboardIcon className="mx-auto mb-2 text-gray-300" size={40} aria-hidden="true" />
+              <p className="text-sm">No sales yet. Head to <NavLink to="/pos" className="font-medium text-blue-600 hover:text-blue-800 underline">POS</NavLink> to make your first sale!</p>
+            </div>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -133,7 +159,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {data.recentSales.map((sale) => (
+                {(data.recentSales ?? []).map((sale) => (
                   <tr key={sale.id} className="border-b last:border-0">
                     <td className="px-5 py-3 font-mono text-gray-800">
                       {sale.receipt_number}

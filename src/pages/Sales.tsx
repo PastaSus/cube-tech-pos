@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Receipt } from 'lucide-react';
 import { salesApi } from '../api';
 import type { Sale } from '../api';
 
@@ -11,7 +12,7 @@ export default function Sales() {
 
   useEffect(() => {
     salesApi.list()
-      .then(setSales)
+      .then(data => { if (Array.isArray(data)) setSales(data); })
       .catch(() => setError('Failed to load sales'))
       .finally(() => setLoading(false));
   }, []);
@@ -29,7 +30,18 @@ export default function Sales() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64 text-gray-500"><p>Loading...</p></div>;
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-8 w-40 bg-gray-200 rounded-lg" />
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="p-5 space-y-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-6 w-full bg-gray-100 rounded" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -52,13 +64,16 @@ export default function Sales() {
               </tr>
             </thead>
             <tbody>
-              {sales.length === 0 ? (
+              {!Array.isArray(sales) || sales.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-5 py-8 text-center text-gray-500">No sales recorded.</td>
+                  <td colSpan={4} className="px-5 py-12 text-center">
+                    <Receipt className="mx-auto mb-2 text-gray-300" size={40} aria-hidden="true" />
+                    <p className="text-gray-400 text-sm">No sales recorded. Complete a sale in <span className="font-medium text-blue-600">POS</span> to see it here.</p>
+                  </td>
                 </tr>
               ) : (
-                sales.map(sale => (
-                  <tr key={sale.id} className="border-b last:border-0 hover:bg-gray-50">
+                Array.isArray(sales) && sales.map(sale => (
+                  <tr key={sale.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
                     <td className="px-5 py-3 font-mono text-gray-800">{sale.receipt_number}</td>
                     <td className="px-5 py-3 text-gray-800 font-medium">${Number(sale.total).toFixed(2)}</td>
                     <td className="px-5 py-3 text-gray-500">{new Date(sale.created_at).toLocaleString()}</td>
@@ -80,15 +95,16 @@ export default function Sales() {
 
       {detailLoading && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 text-center text-gray-500">
-            Loading...
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 text-center text-gray-500 animate-pulse">
+            <div className="h-4 w-32 bg-gray-200 rounded mx-auto" />
+            <span className="sr-only">Loading sale details...</span>
           </div>
         </div>
       )}
 
       {selected && !detailLoading && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 space-y-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 space-y-4 animate-fadeIn">
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="text-lg font-semibold text-gray-800">Sale Details</h3>

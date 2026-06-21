@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import { Package } from 'lucide-react';
 import { productsApi } from '../api';
 import type { Product } from '../api';
 
@@ -21,19 +22,29 @@ function formatDate(dateStr: string) {
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const load = useCallback(() => {
-    productsApi.list().then(setProducts).catch(() => setError('Failed to load products'));
-  }, []);
+  const setProductsSafe = (data: unknown) => {
+    if (Array.isArray(data)) setProducts(data);
+  };
+
+  const reload = () => productsApi.list().then(setProductsSafe).catch(() => setError('Failed to load products'));
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    productsApi.list()
+      .then(data => { if (!cancelled) setProductsSafe(data); })
+      .catch(() => { if (!cancelled) setError('Failed to load products'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -68,7 +79,7 @@ export default function Products() {
         await productsApi.create(payload);
       }
       setShowModal(false);
-      load();
+      reload();
     } catch {
       setError('Failed to save product');
     } finally {
@@ -76,19 +87,40 @@ export default function Products() {
     }
   };
 
-  const [deleting, setDeleting] = useState<number | null>(null);
-
   const handleDelete = async (id: number) => {
-    setDeleting(id);
+    if (deleting) return;
+    setDeleting(true);
     try {
       await productsApi.delete(id);
-      load();
-    } catch {
-      setError('Cannot delete — product linked to existing sales');
+      setConfirmDelete(null);
+      reload();
+    } catch (err) {
+      const msg = err && typeof err === 'object' && 'response' in err
+        ? 'Cannot delete — product linked to existing sales'
+        : 'Failed to delete product. Check your connection.';
+      setError(msg);
     } finally {
-      setDeleting(null);
+      setDeleting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="flex justify-between">
+          <div className="h-8 w-32 bg-gray-200 rounded-lg" />
+          <div className="h-10 w-32 bg-gray-200 rounded-lg" />
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="p-5 space-y-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-6 w-full bg-gray-100 rounded" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -120,13 +152,16 @@ export default function Products() {
               </tr>
             </thead>
             <tbody>
-              {products.length === 0 ? (
+              {!Array.isArray(products) || products.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-gray-500">No products yet.</td>
+                  <td colSpan={6} className="px-5 py-12 text-center">
+                    <Package className="mx-auto mb-2 text-gray-300" size={40} aria-hidden="true" />
+                    <p className="text-gray-400 text-sm">No products yet. Click <span className="font-medium text-blue-600">+ Add Product</span> to get started.</p>
+                  </td>
                 </tr>
               ) : (
-                products.map(p => (
-                  <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50">
+                Array.isArray(products) && products.map(p => (
+                  <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
                     <td className="px-5 py-3 font-medium text-gray-800">{p.name}</td>
                     <td className="px-5 py-3 text-gray-800">${Number(p.price).toFixed(2)}</td>
                     <td className="px-5 py-3">
@@ -149,8 +184,8 @@ export default function Products() {
                         <button onClick={() => openEdit(p)} className="text-blue-600 hover:text-blue-800 text-xs font-medium">
                           Edit
                         </button>
-                        <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id} className="text-red-600 hover:text-red-800 text-xs font-medium disabled:text-red-300">
-                          {deleting === p.id ? '...' : 'Delete'}
+                        <button onClick={() => setConfirmDelete(p)} className="text-red-600 hover:text-red-800 text-xs font-medium">
+                          Delete
                         </button>
                       </div>
                     </td>
@@ -163,8 +198,8 @@ export default function Products() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 space-y-4">
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4 transition-opacity">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 space-y-4 animate-fadeIn">
             <h3 className="text-lg font-semibold text-gray-800">
               {editing ? 'Edit Product' : 'Add Product'}
             </h3>
@@ -231,6 +266,35 @@ export default function Products() {
                 }`}
               >
                 {saving ? 'Saving...' : editing ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6 space-y-4 animate-fadeIn">
+            <h3 className="text-lg font-semibold text-gray-800">Delete Product</h3>
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete <span className="font-medium">{confirmDelete.name}</span>? This will permanently remove this product.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(confirmDelete.id)}
+                disabled={deleting}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  deleting ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
+                } text-white`}
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

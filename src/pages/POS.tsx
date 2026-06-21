@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Search } from 'lucide-react';
 import { productsApi, salesApi } from '../api';
 import type { Product } from '../api';
 
@@ -12,10 +13,11 @@ export default function POS() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [checkoutMessage, setCheckoutMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [search, setSearch] = useState('');
 
   const loadProducts = useCallback(() => {
     productsApi.list()
-      .then(setProducts)
+      .then(data => { if (Array.isArray(data)) setProducts(data); })
       .catch(() => setCheckoutMessage({ type: 'error', text: 'Failed to load products' }));
   }, []);
 
@@ -90,8 +92,17 @@ export default function POS() {
           </div>
         )}
 
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search products..."
+          aria-label="Search products"
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {products.filter(p => p.stock > 0).map(product => (
+          {Array.isArray(products) && products.filter(p => p.stock > 0 && (p.name ?? '').toLowerCase().includes(search.toLowerCase())).map(product => (
             <button
               key={product.id}
               onClick={() => addToCart(product)}
@@ -102,15 +113,26 @@ export default function POS() {
               <p className="text-xs text-gray-400">{product.stock} in stock</p>
             </button>
           ))}
-          {products.filter(p => p.stock > 0).length === 0 && (
-            <p className="text-gray-500 col-span-full text-center py-8">No products available.</p>
+          {(!Array.isArray(products) || products.filter(p => p.stock > 0 && (p.name ?? '').toLowerCase().includes(search.toLowerCase())).length === 0) && (
+            <div className="text-gray-400 col-span-full text-center py-12">
+              <Search className="mx-auto mb-2 text-gray-300" size={40} aria-hidden="true" />
+              <p className="text-sm">{search ? 'No products match your search.' : 'No products available.'}</p>
+            </div>
           )}
         </div>
       </div>
 
       <div className="lg:w-80 bg-white rounded-xl shadow-sm border flex flex-col">
-        <div className="p-4 border-b">
+        <div className="p-4 border-b flex items-center justify-between">
           <h3 className="font-semibold text-gray-800">Cart ({cart.length})</h3>
+          {cart.length > 0 && (
+            <button
+              onClick={() => setCart([])}
+              className="text-xs text-red-500 hover:text-red-700 font-medium"
+            >
+              Clear all
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-auto p-4 space-y-3">
