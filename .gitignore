@@ -13,6 +13,10 @@ dist-ssr
 *.local
 .env
 
+# Interview study guides
+*FRONTEND_INTERVIEW_GUIDE.md
+*BACKEND_INTERVIEW_GUIDE.md
+
 # BMad method files
 _bmad/
 .opencode/
